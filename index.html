@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GuitarBuddy</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #20242c;
+    --ink: #e8ecf1;
+    --muted: #8a93a3;
+    --accent: #6ee7b7;
+    --good: #22c55e;
+    --bad: #ef4444;
+    --warn: #fbbf24;
+    --root: #5b6ee1;
+    --scale: #4a5677;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+  h1 {
+    font-weight: 500;
+    font-size: 16px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0 0 20px 0;
+  }
+  .container {
+    width: 100%;
+    max-width: 1240px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .tuner {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 16px 24px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .tuner-note {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    min-width: 110px;
+    transition: color 0.15s;
+  }
+  .tuner-note .accidental { font-size: 30px; vertical-align: super; margin-left: 2px; }
+  .tuner-note .octave { font-size: 22px; color: var(--muted); margin-left: 4px; font-weight: 400; }
+  .tuner-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
+  .freq {
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .cents {
+    height: 6px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    position: relative;
+    overflow: visible;
+  }
+  .cents-bar {
+    position: absolute; top: -2px; bottom: -2px;
+    width: 3px;
+    background: var(--accent);
+    left: 50%;
+    transform: translateX(-50%);
+    transition: left 0.08s, background 0.15s;
+    border-radius: 1px;
+  }
+  .cents-center {
+    position: absolute; top: -3px; bottom: -3px;
+    left: 50%; width: 1px;
+    background: rgba(255,255,255,0.18);
+  }
+  .cents-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .controls label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  select {
+    background: var(--panel-2);
+    color: var(--ink);
+    border: 1px solid #2a2f38;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  button {
+    background: var(--accent);
+    color: #0f1115;
+    border: 0;
+    padding: 10px 20px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.05s, opacity 0.15s;
+  }
+  button:hover { transform: translateY(-1px); }
+  button.stop { background: var(--bad); color: #fff; }
+  .status {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .scale-title {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 4px 0 -4px 4px;
+    letter-spacing: 0.04em;
+  }
+  .fretboard-wrap {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    overflow-x: auto;
+  }
+  svg.fretboard {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-width: 980px;
+  }
+  .fret-line { stroke: #3a4150; stroke-width: 1; }
+  .nut-line { stroke: #d8d8d8; stroke-width: 5; stroke-linecap: round; }
+  .string-line { stroke: #6a7080; stroke-width: 1.4; }
+  .string-line.thick-1 { stroke-width: 1.8; }
+  .string-line.thick-2 { stroke-width: 2.2; }
+  .string-line.thick-3 { stroke-width: 2.8; }
+  .fret-num { fill: var(--muted); font-size: 11px; }
+  .inlay { fill: #2a2f38; }
+  .scale-dot { fill: var(--scale); }
+  .scale-dot.root { fill: var(--root); }
+  .scale-label { fill: #fff; font-size: 11px; font-weight: 600; pointer-events: none; }
+  .played-ring { fill: none; stroke-width: 3; }
+  .played-ring.in { stroke: var(--good); animation: ringPulse 0.7s ease-out forwards; }
+  .played-ring.out { stroke: var(--bad); animation: ringPulse 0.7s ease-out forwards; }
+  @keyframes ringPulse {
+    0% { r: 14; opacity: 1; stroke-width: 4; }
+    100% { r: 22; opacity: 0; stroke-width: 1; }
+  }
+  .played-glow { fill-opacity: 0.18; pointer-events: none; }
+  .played-glow.in { fill: var(--good); }
+  .played-glow.out { fill: var(--bad); }
+
+  button.secondary {
+    background: var(--panel-2);
+    color: var(--ink);
+    border: 1px solid #2a2f38;
+  }
+  .calibrated-badge {
+    font-size: 11px;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 2px 8px;
+    margin-left: 6px;
+    display: none;
+  }
+  .calibrated-badge.on { display: inline-block; }
+
+  .calib-banner {
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    border-left: 4px solid var(--accent);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .calib-banner.active { display: flex; }
+  .calib-title {
+    font-size: 12px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+  }
+  .calib-prompt { font-size: 18px; font-weight: 600; }
+  .calib-prompt b { color: var(--accent); }
+  .calib-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .calib-bar {
+    flex: 1;
+    min-width: 200px;
+    height: 8px;
+    background: var(--panel-2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .calib-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.12s;
+  }
+  .calib-progress {
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 80px;
+  }
+  .calib-grid {
+    display: grid;
+    grid-template-columns: 28px repeat(5, 1fr);
+    gap: 4px 6px;
+    font-size: 11px;
+    max-width: 520px;
+  }
+  .calib-grid-label {
+    text-align: right;
+    color: var(--muted);
+    font-weight: 600;
+    align-self: center;
+  }
+  .calib-grid-cell {
+    background: var(--panel-2);
+    border: 1px solid #2a2f38;
+    border-radius: 6px;
+    padding: 4px 6px;
+    text-align: center;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .calib-grid-cell.done {
+    background: var(--good);
+    color: #0f1115;
+    border-color: var(--good);
+  }
+  .calib-grid-cell.current {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(110, 231, 183, 0.08);
+  }
+</style>
+</head>
+<body>
+  <h1>GuitarBuddy</h1>
+  <div class="container">
+    <div class="tuner" id="card">
+      <div class="tuner-note" id="note">—</div>
+      <div class="tuner-meta">
+        <div class="freq" id="freq">&nbsp;</div>
+        <div class="cents">
+          <div class="cents-center"></div>
+          <div class="cents-bar" id="centsBar"></div>
+        </div>
+        <div class="cents-label" id="centsLabel">&nbsp;</div>
+      </div>
+      <button id="toggle">Start</button>
+      <button id="calibBtn" class="secondary">Calibrate</button>
+    </div>
+
+    <div class="controls">
+      <label for="rootSel">Root</label>
+      <select id="rootSel"></select>
+      <label for="qualitySel">Scale</label>
+      <select id="qualitySel">
+        <option value="major">Major</option>
+        <option value="minor" selected>Minor</option>
+      </select>
+      <span class="calibrated-badge" id="calibBadge">Calibrated</span>
+      <span class="status" id="status">Calibrate first for best string detection, then press Start.</span>
+    </div>
+
+    <div class="calib-banner" id="calibBanner">
+      <div class="calib-title">Calibration · <span id="calibStepLabel">0 / 30</span></div>
+      <div class="calib-prompt" id="calibPrompt">—</div>
+      <div class="calib-row">
+        <div class="calib-bar"><div class="calib-bar-fill" id="calibBarFill"></div></div>
+        <div class="calib-progress" id="calibProgress">0 / 12</div>
+        <button id="calibCancel" class="secondary">Cancel</button>
+      </div>
+      <div class="calib-grid" id="calibGrid"></div>
+    </div>
+
+    <div class="scale-title" id="scaleTitle">A Minor full fretboard</div>
+    <div class="fretboard-wrap">
+      <svg id="fretboard" class="fretboard" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const A4 = 440;
+
+  // Strings top → bottom: high E to low E (standard fretboard diagram convention)
+  // MIDI: E4=64, B3=59, G3=55, D3=50, A2=45, E2=40
+  const STRINGS = [
+    { name: "E", midi: 64, thick: 0 },
+    { name: "B", midi: 59, thick: 0 },
+    { name: "G", midi: 55, thick: 1 },
+    { name: "D", midi: 50, thick: 2 },
+    { name: "A", midi: 45, thick: 3 },
+    { name: "E", midi: 40, thick: 3 },
+  ];
+  const FRETS = 15;
+  const INLAYS = [3, 5, 7, 9, 15];
+  const DOUBLE_INLAYS = [12];
+
+  // Layout constants (SVG units)
+  const PAD_L = 56;
+  const PAD_R = 16;
+  const PAD_T = 28;
+  const PAD_B = 24;
+  const FRET_W = 60;
+  const STRING_H = 38;
+  const OPEN_X = PAD_L - 26;
+  const SVG_W = PAD_L + FRETS * FRET_W + PAD_R;
+  const SVG_H = PAD_T + STRINGS.length * STRING_H + PAD_B;
+
+  const SCALES = {
+    major: [0, 2, 4, 5, 7, 9, 11],
+    minor: [0, 2, 3, 5, 7, 8, 10],
+  };
+
+  // ---- DOM ----
+  const els = {
+    card: document.getElementById("card"),
+    note: document.getElementById("note"),
+    freq: document.getElementById("freq"),
+    centsBar: document.getElementById("centsBar"),
+    centsLabel: document.getElementById("centsLabel"),
+    toggle: document.getElementById("toggle"),
+    status: document.getElementById("status"),
+    rootSel: document.getElementById("rootSel"),
+    qualitySel: document.getElementById("qualitySel"),
+    scaleTitle: document.getElementById("scaleTitle"),
+    fretboard: document.getElementById("fretboard"),
+    calibBtn: document.getElementById("calibBtn"),
+    calibBanner: document.getElementById("calibBanner"),
+    calibStepLabel: document.getElementById("calibStepLabel"),
+    calibPrompt: document.getElementById("calibPrompt"),
+    calibBarFill: document.getElementById("calibBarFill"),
+    calibProgress: document.getElementById("calibProgress"),
+    calibCancel: document.getElementById("calibCancel"),
+    calibGrid: document.getElementById("calibGrid"),
+    calibBadge: document.getElementById("calibBadge"),
+  };
+
+  // Populate root selector
+  NOTE_NAMES.forEach((n, i) => {
+    const o = document.createElement("option");
+    o.value = String(i);
+    o.textContent = n;
+    if (n === "A") o.selected = true;
+    els.rootSel.appendChild(o);
+  });
+
+  // ---- Audio / detection ----
+  const BUFFER_SIZE = 2048;
+  const MIN_FREQ = 70;
+  const MAX_FREQ = 1500;
+  const SILENCE_RMS = 0.006;
+  const CLARITY_FLOOR = 0.4;
+
+  let audioCtx = null, stream = null, analyser = null, rafId = null, running = false;
+  const buf = new Float32Array(BUFFER_SIZE);
+  const freqBuf = new Float32Array(BUFFER_SIZE / 2);
+
+  function detectPitch(buffer, sampleRate) {
+    const N = buffer.length;
+    let rms = 0;
+    for (let i = 0; i < N; i++) rms += buffer[i] * buffer[i];
+    rms = Math.sqrt(rms / N);
+    if (rms < SILENCE_RMS) return { freq: -1 };
+
+    const maxTau = Math.min(N - 2, Math.floor(sampleRate / MIN_FREQ));
+    const minTau = Math.max(2, Math.floor(sampleRate / MAX_FREQ));
+    const nsdf = new Float32Array(maxTau + 1);
+    for (let tau = minTau; tau <= maxTau; tau++) {
+      let acf = 0, divisor = 0;
+      for (let i = 0; i < N - tau; i++) {
+        const a = buffer[i], b = buffer[i + tau];
+        acf += a * b;
+        divisor += a * a + b * b;
+      }
+      nsdf[tau] = divisor > 0 ? (2 * acf) / divisor : 0;
+    }
+    const peaks = [];
+    let pos = minTau;
+    while (pos <= maxTau && nsdf[pos] > 0) pos++;
+    while (pos <= maxTau && nsdf[pos] <= 0) pos++;
+    while (pos < maxTau) {
+      if (nsdf[pos] > 0) {
+        let peakTau = pos, peakVal = nsdf[pos];
+        while (pos <= maxTau && nsdf[pos] > 0) {
+          if (nsdf[pos] > peakVal) { peakVal = nsdf[pos]; peakTau = pos; }
+          pos++;
+        }
+        peaks.push({ tau: peakTau, val: peakVal });
+      } else { pos++; }
+    }
+    if (peaks.length === 0) return { freq: -1 };
+    let highest = 0;
+    for (const p of peaks) if (p.val > highest) highest = p.val;
+    if (highest < CLARITY_FLOOR) return { freq: -1 };
+    const threshold = 0.9 * highest;
+    let chosen = peaks[0];
+    for (const p of peaks) { if (p.val >= threshold) { chosen = p; break; } }
+
+    // Octave-up guard: a guitar's strong 2nd harmonic can produce an NSDF peak
+    // at half the true period (= reported pitch is one octave high). If a peak
+    // *nearly as strong* exists at 2*tau, that's the real fundamental — switch.
+    // Strict thresholds (0.95 relative + 0.7 absolute) prevent over-triggering.
+    {
+      const target = chosen.tau * 2;
+      if (target <= maxTau) {
+        let bestVal = -Infinity, bestTau = -1;
+        const SEARCH = 4;
+        for (let off = -SEARCH; off <= SEARCH; off++) {
+          const tt = target + off;
+          if (tt < minTau || tt > maxTau) continue;
+          if (nsdf[tt] > bestVal) { bestVal = nsdf[tt]; bestTau = tt; }
+        }
+        if (bestTau > 0 && bestVal > 0.7 && bestVal > chosen.val * 0.95) {
+          chosen = { tau: bestTau, val: bestVal };
+        }
+      }
+    }
+
+    const t = chosen.tau;
+    const x0 = nsdf[t - 1] ?? chosen.val;
+    const x1 = chosen.val;
+    const x2 = nsdf[t + 1] ?? chosen.val;
+    const denom = (x0 - 2 * x1 + x2);
+    const shift = denom !== 0 ? 0.5 * (x0 - x2) / denom : 0;
+    const refinedTau = t + shift;
+    const freq = sampleRate / refinedTau;
+    if (freq < MIN_FREQ || freq > MAX_FREQ) return { freq: -1 };
+    return { freq, clarity: chosen.val };
+  }
+
+  // Multi-feature timbre fingerprint:
+  //   b   = brightness (high vs low harmonic energy)
+  //   h2  = 2nd-harmonic strength relative to fundamental
+  //   h3  = 3rd-harmonic strength relative to fundamental
+  //   B   = inharmonicity coefficient (string stiffness signature)
+  // Different strings/fret positions produce different combinations, so a
+  // weighted distance across all four is more discriminating than brightness alone.
+  function computeFeatures(freqData, f0, sampleRate, fftSize) {
+    const binSize = sampleRate / fftSize;
+    // Linear magnitude of each harmonic (n=1..8) at expected bin ±2
+    const mag = new Array(8).fill(0);
+    for (let n = 1; n <= 8; n++) {
+      const center = Math.round((f0 * n) / binSize);
+      if (center < 1 || center >= freqData.length) continue;
+      let peakDb = -Infinity;
+      for (let off = -2; off <= 2; off++) {
+        const b = center + off;
+        if (b < 1 || b >= freqData.length) continue;
+        if (freqData[b] > peakDb) peakDb = freqData[b];
+      }
+      if (peakDb !== -Infinity) mag[n - 1] = Math.pow(10, peakDb / 20);
+    }
+    const low = mag[0] + mag[1];
+    const high = mag[2] + mag[3] + mag[4] + mag[5] + mag[6] + mag[7];
+    const total = low + high;
+    const b = total > 1e-9 ? high / total : 0.5;
+    const fund = mag[0] > 1e-9 ? mag[0] : 1e-9;
+    const h2 = mag[1] / fund;
+    const h3 = mag[2] / fund;
+
+    // Inharmonicity: locate actual peaks for harmonics 2..5, compare to n*f0.
+    // f_n = n*f0*sqrt(1 + B*n^2)  ⇒  B = (f_n / (n*f0))^2 - 1) / n^2
+    let Bsum = 0, Bcount = 0;
+    for (let n = 2; n <= 5; n++) {
+      const expected = f0 * n;
+      const expectedBin = expected / binSize;
+      const center = Math.round(expectedBin);
+      if (center < 1 || center >= freqData.length) continue;
+      const SEARCH = Math.max(3, Math.round(expectedBin * 0.05));
+      let bestBin = -1, bestMag = -Infinity;
+      for (let off = -SEARCH; off <= SEARCH; off++) {
+        const bb = center + off;
+        if (bb < 1 || bb >= freqData.length) continue;
+        if (freqData[bb] > bestMag) { bestMag = freqData[bb]; bestBin = bb; }
+      }
+      if (bestBin === -1 || bestMag < -60) continue;
+      // Parabolic interpolation for sub-bin frequency precision
+      const y0 = freqData[bestBin - 1] ?? bestMag;
+      const y1 = freqData[bestBin];
+      const y2 = freqData[bestBin + 1] ?? bestMag;
+      const denom = y0 - 2 * y1 + y2;
+      let shift = denom !== 0 ? 0.5 * (y0 - y2) / denom : 0;
+      shift = Math.max(-0.5, Math.min(0.5, shift));
+      const actualFreq = (bestBin + shift) * binSize;
+      const ratio = actualFreq / (n * f0);
+      if (ratio < 0.97 || ratio > 1.1) continue;
+      const Bn = (ratio * ratio - 1) / (n * n);
+      if (Bn > -1e-3 && Bn < 1e-2) { Bsum += Bn; Bcount++; }
+    }
+    const B = Bcount > 0 ? Math.max(0, Bsum / Bcount) : 0;
+    return { b, h2, h3, B };
+  }
+
+  // Per-feature scales used to normalize differences before summing.
+  // Roughly: typical std-dev across positions on a guitar.
+  const FEATURE_SCALES = { b: 0.2, h2: 0.6, h3: 0.4, B: 1e-4 };
+
+  function featureDistance(m, e) {
+    const db = (m.b - e.b) / FEATURE_SCALES.b;
+    const dh2 = (m.h2 - e.h2) / FEATURE_SCALES.h2;
+    const dh3 = (m.h3 - e.h3) / FEATURE_SCALES.h3;
+    const dB = (m.B - e.B) / FEATURE_SCALES.B;
+    return Math.sqrt(db * db + dh2 * dh2 + dh3 * dh3 + dB * dB) / 2; // 4 features → /sqrt(4)=/2
+  }
+
+  // calibTable[stringIdx] = sorted array of {fret, b} measured during calibration.
+  // null = uncalibrated; pickPosition then falls back to a default ramp.
+  let calibTable = null;
+
+  // Best feature match across all reachable positions for a given MIDI.
+  function bestFeatureMatchForMidi(midi, measured) {
+    let best = Infinity;
+    for (let s = 0; s < STRINGS.length; s++) {
+      const fret = midi - STRINGS[s].midi;
+      if (fret < 0 || fret > FRETS) continue;
+      const d = featureDistance(measured, expectedFeaturesAt(s, fret));
+      if (d < best) best = d;
+    }
+    return best;
+  }
+
+  // Octave validation using the full feature fingerprint, not just brightness.
+  function correctOctave(midi, measured) {
+    if (!calibTable) return midi;
+    const cur = bestFeatureMatchForMidi(midi, measured);
+    if (cur < 0.5) return midi; // already a tight fit, trust pitch detection
+    const down = bestFeatureMatchForMidi(midi - 12, measured);
+    const up = bestFeatureMatchForMidi(midi + 12, measured);
+    if (down < cur * 0.4 && down < 0.4) return midi - 12;
+    if (up < cur * 0.4 && up < 0.4) return midi + 12;
+    return midi;
+  }
+
+  function defaultFeaturesFor(stringIdx) {
+    return { b: 0.7 - 0.07 * stringIdx, h2: 0.5, h3: 0.3, B: 0 };
+  }
+
+  function expectedFeaturesAt(stringIdx, fret) {
+    const def = defaultFeaturesFor(stringIdx);
+    if (!calibTable || !calibTable[stringIdx] || calibTable[stringIdx].length === 0) {
+      return def;
+    }
+    const pts = calibTable[stringIdx];
+    function lerpPoint(t, a, c) {
+      return {
+        b: a.b * (1 - t) + c.b * t,
+        h2: a.h2 * (1 - t) + c.h2 * t,
+        h3: a.h3 * (1 - t) + c.h3 * t,
+        B: a.B * (1 - t) + c.B * t,
+      };
+    }
+    if (fret <= pts[0].fret) return pts[0];
+    if (fret >= pts[pts.length - 1].fret) return pts[pts.length - 1];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], c = pts[i + 1];
+      if (fret >= a.fret && fret <= c.fret) {
+        const t = (fret - a.fret) / (c.fret - a.fret);
+        return lerpPoint(t, a, c);
+      }
+    }
+    return def;
+  }
+
+  // Pick the most plausible (string, fret) for a given MIDI note.
+  // Uses minimum hand movement from prevPos plus a brightness tiebreaker.
+  // Returns { string, fret } or null if midi is out of board range.
+  function pickPosition(midi, prevPos, measured) {
+    const all = [];
+    for (let s = 0; s < STRINGS.length; s++) {
+      const fret = midi - STRINGS[s].midi;
+      if (fret >= 0 && fret <= FRETS) all.push({ string: s, fret });
+    }
+    if (all.length === 0) return null;
+    if (all.length === 1) return all[0];
+
+    // Hard hand-reach constraint: humans can't span more than ~3 frets without
+    // a position shift. Filter to candidates within ±POS_WINDOW of the anchor;
+    // only fall back to the full set when nothing is reachable.
+    const POS_WINDOW = 3;
+    let candidates = all;
+    if (prevPos) {
+      const inWindow = all.filter(c => Math.abs(c.fret - prevPos.fret) <= POS_WINDOW);
+      if (inWindow.length > 0) candidates = inWindow;
+    }
+
+    const FRET_COST = 0.5;
+    const STRING_COST = 0.3;
+    const DIAGONAL_PENALTY = 1.2;
+    const FEATURE_W = 0.6;
+    const FIRST_NOTE_FRET_BIAS = 0.5;
+
+    let best = null, bestCost = Infinity;
+    for (const c of candidates) {
+      let cost = 0;
+      if (prevPos) {
+        const fretDist = Math.abs(c.fret - prevPos.fret);
+        const stringDist = Math.abs(c.string - prevPos.string);
+        cost += fretDist * FRET_COST;
+        cost += stringDist * STRING_COST;
+        cost += fretDist * stringDist * DIAGONAL_PENALTY;
+      } else {
+        cost += c.fret * FIRST_NOTE_FRET_BIAS;
+      }
+      cost += featureDistance(measured, expectedFeaturesAt(c.string, c.fret)) * FEATURE_W;
+      if (cost < bestCost) { bestCost = cost; best = c; }
+    }
+    return best;
+  }
+
+  function freqToNote(freq) {
+    const midiFloat = 69 + 12 * Math.log2(freq / A4);
+    const midi = Math.round(midiFloat);
+    const cents = Math.round((midiFloat - midi) * 100);
+    const name = NOTE_NAMES[((midi % 12) + 12) % 12];
+    const octave = Math.floor(midi / 12) - 1;
+    return { name, octave, cents, midi };
+  }
+
+  // ---- Tuner display ----
+  function renderTunerNote(name, octave) {
+    const sharp = name.includes("#");
+    const letter = name[0];
+    els.note.innerHTML = sharp
+      ? `${letter}<span class="accidental">♯</span><span class="octave">${octave}</span>`
+      : `${letter}<span class="octave">${octave}</span>`;
+  }
+  function renderTunerEmpty() {
+    els.note.textContent = "—";
+    els.note.style.color = "#2c313b";
+    els.freq.innerHTML = "&nbsp;";
+    els.centsLabel.innerHTML = "&nbsp;";
+    els.centsBar.style.left = "50%";
+  }
+
+  // ---- Fretboard ----
+  function fretCenterX(f) {
+    return f === 0 ? OPEN_X : PAD_L + (f - 0.5) * FRET_W;
+  }
+  function stringCenterY(s) {
+    return PAD_T + s * STRING_H + STRING_H / 2;
+  }
+
+  function svgEl(tag, attrs) {
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  function renderFretboard(scaleSet, rootPc) {
+    const svg = els.fretboard;
+    svg.setAttribute("viewBox", `0 0 ${SVG_W} ${SVG_H}`);
+    svg.innerHTML = "";
+
+    // Inlays (centered between middle strings, in the fret cell)
+    const inlayY = PAD_T + (STRINGS.length / 2) * STRING_H;
+    for (const f of INLAYS) {
+      svg.appendChild(svgEl("circle", {
+        cx: PAD_L + (f - 0.5) * FRET_W, cy: inlayY, r: 5, class: "inlay",
+      }));
+    }
+    for (const f of DOUBLE_INLAYS) {
+      const cx = PAD_L + (f - 0.5) * FRET_W;
+      svg.appendChild(svgEl("circle", { cx, cy: inlayY - STRING_H * 0.9, r: 5, class: "inlay" }));
+      svg.appendChild(svgEl("circle", { cx, cy: inlayY + STRING_H * 0.9, r: 5, class: "inlay" }));
+    }
+
+    // Frets (vertical lines), nut at f=0 line
+    const top = PAD_T + STRING_H / 2;
+    const bot = PAD_T + (STRINGS.length - 1) * STRING_H + STRING_H / 2;
+    for (let f = 0; f <= FRETS; f++) {
+      const x = PAD_L + f * FRET_W;
+      svg.appendChild(svgEl("line", {
+        x1: x, x2: x, y1: top, y2: bot,
+        class: f === 0 ? "nut-line" : "fret-line",
+      }));
+      if (f >= 1) {
+        const t = svgEl("text", {
+          x: x - FRET_W / 2, y: 16, "text-anchor": "middle", class: "fret-num",
+        });
+        t.textContent = f;
+        svg.appendChild(t);
+      }
+    }
+
+    // Strings (horizontal)
+    for (let s = 0; s < STRINGS.length; s++) {
+      const y = stringCenterY(s);
+      svg.appendChild(svgEl("line", {
+        x1: OPEN_X - 6, x2: PAD_L + FRETS * FRET_W,
+        y1: y, y2: y,
+        class: `string-line thick-${STRINGS[s].thick}`,
+      }));
+    }
+
+    // String labels at far left (open string name)
+    for (let s = 0; s < STRINGS.length; s++) {
+      const y = stringCenterY(s);
+      const t = svgEl("text", {
+        x: 16, y, "text-anchor": "start", "dominant-baseline": "central",
+        fill: "var(--muted)", "font-size": 12, "font-weight": 500,
+      });
+      t.textContent = STRINGS[s].name;
+      svg.appendChild(t);
+    }
+
+    // Scale notes
+    for (let s = 0; s < STRINGS.length; s++) {
+      for (let f = 0; f <= FRETS; f++) {
+        const midi = STRINGS[s].midi + f;
+        const pc = ((midi % 12) + 12) % 12;
+        if (!scaleSet.has(pc)) continue;
+        const isRoot = pc === rootPc;
+        const cx = fretCenterX(f);
+        const cy = stringCenterY(s);
+        svg.appendChild(svgEl("circle", {
+          cx, cy, r: 14,
+          class: `scale-dot ${isRoot ? "root" : ""}`,
+          "data-midi": midi,
+        }));
+        const t = svgEl("text", {
+          x: cx, y: cy, "text-anchor": "middle", "dominant-baseline": "central",
+          class: "scale-label",
+        });
+        t.textContent = NOTE_NAMES[pc];
+        svg.appendChild(t);
+      }
+    }
+
+    // Overlay group for played-note rings (always last, drawn on top)
+    const overlay = svgEl("g", { id: "played-overlay" });
+    svg.appendChild(overlay);
+  }
+
+  // ---- Played note overlay ----
+  let lastShownMidi = -1;
+  let lastShownAt = 0;
+  let prevPos = null;
+  const HOLD_MS = 1200;
+  const STALE_PREV_POS_MS = 2000;
+
+  // Single-frame pitch glitches (octave jumps, harmonic confusion) cause
+  // spurious position picks that poison prevPos. Require N consecutive frames
+  // to agree on the MIDI before committing a new fretboard position.
+  let candidateMidi = -1;
+  let candidateCount = 0;
+  const REQUIRED_VOTES = 2;
+
+  function showPlayedPosition(pos, inScale) {
+    const overlay = document.getElementById("played-overlay");
+    if (!overlay || !pos) return;
+    overlay.innerHTML = "";
+    const cx = fretCenterX(pos.fret);
+    const cy = stringCenterY(pos.string);
+    overlay.appendChild(svgEl("circle", {
+      cx, cy, r: 18,
+      class: `played-glow ${inScale ? "in" : "out"}`,
+    }));
+    overlay.appendChild(svgEl("circle", {
+      cx, cy, r: 14,
+      class: `played-ring ${inScale ? "in" : "out"}`,
+    }));
+  }
+
+  function clearPlayedOverlay() {
+    const overlay = document.getElementById("played-overlay");
+    if (overlay) overlay.innerHTML = "";
+  }
+
+  // ---- Scale state ----
+  let scaleSet = new Set();
+  let rootPc = 9; // A
+  let quality = "minor";
+
+  function updateScale() {
+    rootPc = parseInt(els.rootSel.value, 10);
+    quality = els.qualitySel.value;
+    scaleSet = new Set(SCALES[quality].map(i => (rootPc + i) % 12));
+    els.scaleTitle.textContent = `${NOTE_NAMES[rootPc]} ${quality === "major" ? "Major" : "Minor"} full fretboard`;
+    renderFretboard(scaleSet, rootPc);
+    clearPlayedOverlay();
+  }
+
+  els.rootSel.addEventListener("change", updateScale);
+  els.qualitySel.addEventListener("change", updateScale);
+
+  // ---- Calibration ----
+  // Walk the user through 5 specific frets per string (30 total) and capture
+  // brightness samples per (string, fret). pickPosition then has a real
+  // fingerprint per fretboard position, not just a per-string ramp.
+  const CALIB_FRETS = [0, 4, 8, 12, 15];
+  const CALIB_STRING_ORDER = [5, 4, 3, 2, 1, 0]; // low E first (thickest)
+  const CALIB_TARGET_SAMPLES = 12;
+  const CALIB_MIDI_TOLERANCE = 1;
+  // Capture only the steady-state portion of each pluck. Skip the attack
+  // (broadband transient) and stop before the decay-tail dominates.
+  const CALIB_ATTACK_SKIP_MS = 150;
+  const CALIB_CAPTURE_WINDOW_MS = 600;
+  const CALIB_NEW_PLUCK_GAP_MS = 100; // pitch-match gap that signals a new pluck
+  const CALIB_STORAGE_KEY = "guitarbuddy.calibration.v2";
+  const calibSequence = [];
+  for (const stringIdx of CALIB_STRING_ORDER) {
+    for (const fret of CALIB_FRETS) {
+      calibSequence.push({ string: stringIdx, fret });
+    }
+  }
+
+  let mode = "idle"; // "idle" | "calibrate" | "play"
+  let calibStep = 0;
+  let calibSamples = [];
+  let calibFrameCounter = 0;
+  let calibPluckStart = 0;     // when current pluck's pitch first matched
+  let calibLastMatchAt = 0;    // last time pitch matched expected MIDI
+
+  function buildCalibGrid() {
+    els.calibGrid.innerHTML = "";
+    for (const stringIdx of CALIB_STRING_ORDER) {
+      const label = document.createElement("div");
+      label.className = "calib-grid-label";
+      label.textContent = STRINGS[stringIdx].name;
+      els.calibGrid.appendChild(label);
+      for (const fret of CALIB_FRETS) {
+        const cell = document.createElement("div");
+        cell.className = "calib-grid-cell";
+        cell.dataset.string = stringIdx;
+        cell.dataset.fret = fret;
+        cell.textContent = `f${fret}`;
+        els.calibGrid.appendChild(cell);
+      }
+    }
+  }
+  buildCalibGrid();
+
+  function calibCellFor(stringIdx, fret) {
+    return els.calibGrid.querySelector(
+      `.calib-grid-cell[data-string="${stringIdx}"][data-fret="${fret}"]`
+    );
+  }
+
+  function updateCalibUI() {
+    if (calibStep >= calibSequence.length) return;
+    const target = calibSequence[calibStep];
+    const niceNum = STRINGS.length - target.string;
+    els.calibStepLabel.textContent = `${calibStep + 1} / ${calibSequence.length}`;
+    els.calibPrompt.innerHTML = target.fret === 0
+      ? `Pluck the <b>${STRINGS[target.string].name}</b> string (string ${niceNum}) — open`
+      : `Play the <b>${STRINGS[target.string].name}</b> string at <b>fret ${target.fret}</b>`;
+    els.calibProgress.textContent = `${calibSamples.length} / ${CALIB_TARGET_SAMPLES}`;
+    els.calibBarFill.style.width = `${(calibSamples.length / CALIB_TARGET_SAMPLES) * 100}%`;
+    // Mark grid cells: done if completed, current if active
+    const cells = els.calibGrid.querySelectorAll(".calib-grid-cell");
+    cells.forEach(cell => cell.classList.remove("current", "done"));
+    for (let i = 0; i < calibStep; i++) {
+      const t = calibSequence[i];
+      const c = calibCellFor(t.string, t.fret);
+      if (c) c.classList.add("done");
+    }
+    const cur = calibCellFor(target.string, target.fret);
+    if (cur) cur.classList.add("current");
+  }
+
+  function saveCalibration() {
+    if (!calibTable) return;
+    try {
+      const payload = {
+        version: 2,
+        timestamp: Date.now(),
+        frets: CALIB_FRETS,
+        table: calibTable,
+      };
+      localStorage.setItem(CALIB_STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.warn("Failed to save calibration:", e);
+    }
+  }
+
+  function loadCalibration() {
+    try {
+      const raw = localStorage.getItem(CALIB_STORAGE_KEY);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      if (parsed.version !== 2) return false;
+      if (!Array.isArray(parsed.table) || parsed.table.length !== STRINGS.length) return false;
+      for (const arr of parsed.table) {
+        if (!Array.isArray(arr)) return false;
+        for (const pt of arr) {
+          if (typeof pt.fret !== "number") return false;
+          if (typeof pt.b !== "number") return false;
+          if (typeof pt.h2 !== "number") return false;
+          if (typeof pt.h3 !== "number") return false;
+          if (typeof pt.B !== "number") return false;
+        }
+      }
+      calibTable = parsed.table;
+      return true;
+    } catch (e) {
+      console.warn("Failed to load calibration:", e);
+      return false;
+    }
+  }
+
+  function exitCalibrate(success) {
+    els.calibBanner.classList.remove("active");
+    if (success) {
+      els.calibBadge.classList.add("on");
+      saveCalibration();
+      els.status.textContent = "Calibrated and saved. Press Start to play.";
+    } else {
+      calibTable = null;
+      els.calibBadge.classList.remove("on");
+      els.status.textContent = "Calibration cancelled.";
+    }
+    mode = "idle";
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (audioCtx) audioCtx.close();
+    audioCtx = null; stream = null; analyser = null;
+    renderTunerEmpty();
+  }
+
+  async function startCalibrate() {
+    try {
+      els.status.textContent = "Requesting microphone…";
+      await ensureAudio();
+      mode = "calibrate";
+      calibStep = 0;
+      calibSamples = [];
+      calibFrameCounter = 0;
+      calibTable = new Array(STRINGS.length).fill(null).map(() => []);
+      els.calibBadge.classList.remove("on");
+      els.calibBanner.classList.add("active");
+      updateCalibUI();
+      running = true;
+      els.status.textContent = `Calibrating · ${audioCtx.sampleRate} Hz`;
+      tick();
+    } catch (err) {
+      console.error(err);
+      els.status.textContent = `Error: ${err.message || err}`;
+    }
+  }
+
+  function calibrateTick() {
+    analyser.getFloatTimeDomainData(buf);
+    const result = detectPitch(buf, audioCtx.sampleRate);
+    if (result.freq <= 0) return;
+
+    const { name, octave, midi } = freqToNote(result.freq);
+    renderTunerNote(name, octave);
+    els.freq.textContent = `${result.freq.toFixed(1)} Hz`;
+
+    const target = calibSequence[calibStep];
+    const expectedMidi = STRINGS[target.string].midi + target.fret;
+    if (Math.abs(midi - expectedMidi) > CALIB_MIDI_TOLERANCE) return;
+
+    const now = performance.now();
+    // A long gap since the last pitch-match means a new pluck. Reset its timer.
+    if (now - calibLastMatchAt > CALIB_NEW_PLUCK_GAP_MS) {
+      calibPluckStart = now;
+      calibFrameCounter = 0;
+    }
+    calibLastMatchAt = now;
+
+    const intoPluck = now - calibPluckStart;
+    // Skip attack transient and avoid late-decay noise.
+    if (intoPluck < CALIB_ATTACK_SKIP_MS) return;
+    if (intoPluck > CALIB_CAPTURE_WINDOW_MS) return;
+
+    // Throttle so samples spread across the steady-state window.
+    calibFrameCounter++;
+    if (calibFrameCounter % 3 !== 0) return;
+
+    analyser.getFloatFrequencyData(freqBuf);
+    const features = computeFeatures(freqBuf, result.freq, audioCtx.sampleRate, BUFFER_SIZE);
+    calibSamples.push(features);
+    updateCalibUI();
+
+    if (calibSamples.length >= CALIB_TARGET_SAMPLES) {
+      // Trim outliers per feature independently (drop 2 highest + 2 lowest), then average.
+      const trimmedMean = (key) => {
+        const sorted = [...calibSamples].sort((a, b) => a[key] - b[key]);
+        const middle = sorted.slice(2, -2);
+        return middle.reduce((s, v) => s + v[key], 0) / middle.length;
+      };
+      const point = {
+        fret: target.fret,
+        b: trimmedMean("b"),
+        h2: trimmedMean("h2"),
+        h3: trimmedMean("h3"),
+        B: trimmedMean("B"),
+      };
+      calibTable[target.string].push(point);
+      calibTable[target.string].sort((x, y) => x.fret - y.fret);
+      calibSamples = [];
+      calibPluckStart = 0;
+      calibLastMatchAt = 0;
+      calibStep++;
+      if (calibStep >= calibSequence.length) {
+        exitCalibrate(true);
+        return;
+      }
+      updateCalibUI();
+    }
+  }
+
+  // ---- Main tick ----
+  function tick() {
+    if (!running) return;
+    if (mode === "calibrate") {
+      calibrateTick();
+      rafId = requestAnimationFrame(tick);
+      return;
+    }
+    analyser.getFloatTimeDomainData(buf);
+    const result = detectPitch(buf, audioCtx.sampleRate);
+    const now = performance.now();
+
+    if (result.freq <= 0) {
+      candidateMidi = -1;
+      candidateCount = 0;
+      if (now - lastShownAt > HOLD_MS) {
+        renderTunerEmpty();
+        clearPlayedOverlay();
+        lastShownMidi = -1;
+        prevPos = null;
+      }
+      rafId = requestAnimationFrame(tick);
+      return;
+    }
+
+    // Tuner display: update every frame so cents/freq feel responsive.
+    let { name, octave, cents, midi } = freqToNote(result.freq);
+    renderTunerNote(name, octave);
+    els.freq.textContent = `${result.freq.toFixed(1)} Hz`;
+    els.centsLabel.textContent = `${cents > 0 ? "+" : ""}${cents}¢`;
+    const pct = Math.max(0, Math.min(100, 50 + cents));
+    els.centsBar.style.left = `${pct}%`;
+    const absC = Math.abs(cents);
+    if (absC > 25) els.note.style.color = "var(--bad)";
+    else if (absC > 10) els.note.style.color = "var(--warn)";
+    else els.note.style.color = "var(--good)";
+
+    // Vote: only commit a fretboard pick once N consecutive frames agree.
+    if (midi === candidateMidi) candidateCount++;
+    else { candidateMidi = midi; candidateCount = 1; }
+
+    if (candidateCount >= REQUIRED_VOTES && midi !== lastShownMidi) {
+      analyser.getFloatFrequencyData(freqBuf);
+      const measured = computeFeatures(freqBuf, result.freq, audioCtx.sampleRate, BUFFER_SIZE);
+
+      const corrected = correctOctave(midi, measured);
+      if (corrected !== midi) {
+        const ratio = (corrected - midi) / 12;
+        const correctedFreq = result.freq * Math.pow(2, ratio);
+        const c = freqToNote(correctedFreq);
+        renderTunerNote(c.name, c.octave);
+        els.freq.textContent = `${correctedFreq.toFixed(1)} Hz`;
+        els.centsLabel.textContent = `${c.cents > 0 ? "+" : ""}${c.cents}¢`;
+        const pct = Math.max(0, Math.min(100, 50 + c.cents));
+        els.centsBar.style.left = `${pct}%`;
+        midi = corrected;
+      }
+
+      const pc = ((midi % 12) + 12) % 12;
+      const inScale = scaleSet.has(pc);
+      const ctxPos = (now - lastShownAt > STALE_PREV_POS_MS) ? null : prevPos;
+      const pos = pickPosition(midi, ctxPos, measured);
+      if (pos) {
+        showPlayedPosition(pos, inScale);
+        if (pos.fret > 0) prevPos = pos;
+      }
+      lastShownMidi = midi;
+    }
+
+    lastShownAt = now;
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // ---- Start/stop ----
+  async function ensureAudio() {
+    if (audioCtx) return;
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        channelCount: 1,
+      },
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+    const src = audioCtx.createMediaStreamSource(stream);
+    const gain = audioCtx.createGain();
+    gain.gain.value = 4.0;
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = BUFFER_SIZE;
+    analyser.smoothingTimeConstant = 0;
+    src.connect(gain);
+    gain.connect(analyser);
+  }
+
+  async function start() {
+    try {
+      els.status.textContent = "Requesting microphone…";
+      await ensureAudio();
+      mode = "play";
+      running = true;
+      els.toggle.textContent = "Stop";
+      els.toggle.classList.add("stop");
+      els.status.textContent = `Listening · ${audioCtx.sampleRate} Hz`;
+      tick();
+    } catch (err) {
+      console.error(err);
+      els.status.textContent = `Error: ${err.message || err}`;
+    }
+  }
+
+  function stop() {
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (audioCtx) audioCtx.close();
+    audioCtx = null; stream = null; analyser = null;
+    renderTunerEmpty();
+    clearPlayedOverlay();
+    lastShownMidi = -1;
+    prevPos = null;
+    mode = "idle";
+    els.toggle.textContent = "Start";
+    els.toggle.classList.remove("stop");
+    els.status.textContent = "Stopped.";
+  }
+
+  els.toggle.addEventListener("click", () => running ? stop() : start());
+  els.calibBtn.addEventListener("click", () => {
+    if (mode === "calibrate") return;
+    if (running) stop();
+    startCalibrate();
+  });
+  els.calibCancel.addEventListener("click", () => exitCalibrate(false));
+
+  // Initial render
+  updateScale();
+  renderTunerEmpty();
+
+  // Auto-load any saved calibration from a previous session
+  if (loadCalibration()) {
+    els.calibBadge.classList.add("on");
+    els.status.textContent = "Loaded saved calibration. Press Start to play.";
+  }
+})();
+</script>
+</body>
+</html>
